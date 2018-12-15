@@ -5,6 +5,7 @@ import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -17,12 +18,32 @@ import java.util.Scanner;
 
 public class Main {
 
+  private static final String IMPORT_OPT = "-import";
+  private static final String EXPORT_OPT = "-export";
+
   private static Map<String, String> cardToDefinition = new LinkedHashMap<>();
   private static Map<String, String> definitionToCard = new LinkedHashMap<>();
   private static List<String> logs = new ArrayList<>();
   private static Map<String, Integer> stats = new HashMap<>();
 
+  private static Path importPath = null;
+  private static Path exportPath = null;
+
   public static void main(String[] args) {
+    if (args.length > 0) {
+      String[][] optPairs = new String[args.length / 2][2];
+      int i = 0, j = 0;
+      while (i < args.length - 1) {
+        optPairs[j][0] = args[i];
+        optPairs[j][1] = args[i + 1];
+        i += 2;
+        j++;
+      }
+      assignOpts(optPairs);
+    }
+    if (importPath != null) {
+      importCard(importPath);
+    }
     try (Scanner scanner = new Scanner(System.in)) {
       while (true) {
         System.out.println(
@@ -49,6 +70,9 @@ public class Main {
             askCard(scanner);
             break;
           case "exit":
+            if (exportPath != null) {
+              exportCard(exportPath);
+            }
             System.out.println("Bye bye!");
             return;
           case "log":
@@ -61,6 +85,19 @@ public class Main {
             resetStats();
             break;
         }
+      }
+    }
+  }
+
+  private static void assignOpts(String[][] optPairs) {
+    for (String[] opt : optPairs) {
+      switch (opt[0]) {
+        case IMPORT_OPT:
+          importPath = Paths.get(opt[1]);
+          break;
+        case EXPORT_OPT:
+          exportPath = Paths.get(opt[1]);
+          break;
       }
     }
   }
@@ -137,7 +174,11 @@ public class Main {
     System.out.println("File name:");
     String fileName = scanner.nextLine();
     logs.add(fileName);
-    try (BufferedWriter writer = Files.newBufferedWriter(Paths.get(fileName));
+    exportCard(Paths.get(fileName));
+  }
+
+  private static void exportCard(Path fileName) {
+    try (BufferedWriter writer = Files.newBufferedWriter(fileName);
         PrintWriter print = new PrintWriter(writer)) {
       for (Entry<String, String> entry : cardToDefinition.entrySet()) {
         print.printf("%s\n%s\n", entry.getKey(), entry.getValue());
@@ -153,8 +194,12 @@ public class Main {
     System.out.println("File name:");
     String fileName = scanner.nextLine();
     logs.add(fileName);
+    importCard(Paths.get(fileName));
+  }
+
+  private static void importCard(Path fileName) {
     int count = 0;
-    try (BufferedReader reader = Files.newBufferedReader(Paths.get(fileName))) {
+    try (BufferedReader reader = Files.newBufferedReader(fileName)) {
       String card;
       while ((card = reader.readLine()) != null) {
         String def = reader.readLine();
@@ -166,10 +211,10 @@ public class Main {
         count++;
       }
     } catch (IOException e) {
-      System.out.printf("0 cards have been saved.\n\n");
+      System.out.printf("0 cards have been read.\n\n");
       return;
     }
-    System.out.printf("%d cards have been saved.\n\n", count);
+    System.out.printf("%d cards have been read.\n\n", count);
   }
 
   private static void removeCard(Scanner scanner) {
